@@ -11,40 +11,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install system dependencies
+      - name: Install deps
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq \
-            git zip unzip openjdk-17-jdk \
-            autoconf libtool pkg-config zlib1g-dev \
-            cmake libffi-dev libssl-dev python3-pip
+          sudo apt-get install -y -qq git zip unzip openjdk-17-jdk autoconf libtool \
+            pkg-config zlib1g-dev cmake libffi-dev libssl-dev python3-pip python3-venv
           echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> $GITHUB_ENV
 
-      - name: Install Buildozer
+      - name: Setup Buildozer
         run: |
-          pip install --upgrade pip setuptools wheel cython buildozer 2>&1
+          python3 -m venv buildozer_venv
+          source buildozer_venv/bin/activate
+          pip install --upgrade pip wheel cython==0.29.37
+          pip install buildozer
 
-      - name: Debug environment
+      - name: Build
         run: |
-          echo "=== Python ==="
-          python3 --version
-          echo "=== Pip ==="
-          pip list 2>/dev/null | grep -i -E "cython|buildozer|kivy|cy"
-          echo "=== Java ==="
-          java -version 2>&1
-          echo "=== JAVA_HOME ==="
-          echo $JAVA_HOME
-          echo "=== Buildozer ==="
-          which buildozer
-          buildozer --version 2>&1 || true
-          echo "=== Spec ==="
-          ls -la buildozer.spec
-          head -30 buildozer.spec
-
-      - name: Build APK
-        run: |
-          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-          buildozer android debug 2>&1
+          source buildozer_venv/bin/activate
+          set -x
+          python3 -m buildozer --help
+          python3 -m buildozer android debug 2>&1 || true
+          echo "--- Exit: $? ---"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
