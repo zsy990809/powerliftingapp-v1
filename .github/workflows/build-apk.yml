@@ -22,10 +22,28 @@ jobs:
 
       - name: Install Buildozer
         run: |
-          pip3 install --upgrade pip setuptools wheel cython buildozer
+          pip install --upgrade pip setuptools wheel cython buildozer 2>&1
+
+      - name: Debug environment
+        run: |
+          echo "=== Python ==="
+          python3 --version
+          echo "=== Pip ==="
+          pip list 2>/dev/null | grep -i -E "cython|buildozer|kivy|cy"
+          echo "=== Java ==="
+          java -version 2>&1
+          echo "=== JAVA_HOME ==="
+          echo $JAVA_HOME
+          echo "=== Buildozer ==="
+          which buildozer
+          buildozer --version 2>&1 || true
+          echo "=== Spec ==="
+          ls -la buildozer.spec
+          head -30 buildozer.spec
 
       - name: Build APK
         run: |
+          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
           buildozer android debug 2>&1
 
       - name: Upload APK
