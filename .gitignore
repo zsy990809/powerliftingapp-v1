@@ -1,0 +1,13 @@
+﻿__pycache__/
+*.pyc
+.DS_Store
+bin/
+.buildozer/
+*.spec
+!buildozer.spec
+assets/*.ttf
+assets/*.wav
+assets/gushen*
+assets/gushen_frames/
+assets/pets/
+assets/icon.ico
