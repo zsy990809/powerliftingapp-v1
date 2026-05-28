@@ -7,34 +7,36 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install deps
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install system dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq git zip unzip openjdk-17-jdk autoconf libtool \
-            pkg-config zlib1g-dev cmake libffi-dev libssl-dev python3-pip python3-venv
+          sudo apt-get install -y -qq git zip unzip openjdk-17-jdk python3-pip \
+            autoconf libtool pkg-config zlib1g-dev libncurses5-dev \
+            libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev
           echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> $GITHUB_ENV
 
-      - name: Setup Buildozer
+      - name: Install Buildozer
         run: |
-          python3 -m venv buildozer_venv
-          source buildozer_venv/bin/activate
-          pip install --upgrade pip wheel cython==0.29.37
-          pip install buildozer
+          pip3 install --user --upgrade pip wheel cython==0.29.37
+          pip3 install --user buildozer
 
-      - name: Build
+      - name: Build APK
         run: |
-          source buildozer_venv/bin/activate
-          set -x
-          python3 -m buildozer --help
-          python3 -m buildozer android debug 2>&1 || true
-          echo "--- Exit: $? ---"
+          export PATH=$PATH:~/.local/bin
+          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+          buildozer android debug 2>&1
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: lwup-apk
           path: bin/*.apk
