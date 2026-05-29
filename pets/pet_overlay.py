@@ -6,7 +6,6 @@ import os
 import random
 import glob
 from kivy.clock import Clock
-from kivy.utils import platform
 from kivy.metrics import dp
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.image import Image
@@ -26,11 +25,7 @@ from pets.pet_chat import SpeechBubble, ChatDialog
 
 
 def _assets(*parts):
-    if platform == "android":
-        base = os.environ.get("ANDROID_PRIVATE", ".")
-    else:
-        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    return os.path.join(base, "assets", "pets", *parts)
+    return os.path.join("assets", "pets", *parts)
 
 
 class PetOverlay(FloatLayout):
@@ -73,48 +68,51 @@ class PetOverlay(FloatLayout):
 
     def _load_horror_sound(self):
         """加载恐怖音效"""
-        if platform == "android":
-            base = os.environ.get("ANDROID_PRIVATE", ".")
-        else:
-            base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        path = os.path.join(base, "assets", "horror.wav")
+        path = "assets/horror.wav"
         if os.path.exists(path):
             self.horror_sound = SoundLoader.load(path)
 
     def _init_pet(self):
         """从配置加载宠物"""
-        pet_id = get_selected_pet()
-        if not pet_id:
+        try:
+            pet_id = get_selected_pet()
+            if not pet_id:
+                return False
+
+            self.pet_id = pet_id
+            self.pet_def = get_pet(pet_id)
+            if not self.pet_def:
+                return False
+
+            if not get_pet_visible():
+                return False
+
+            # 清理旧帧数据，避免残留
+            self.frames = []
+            self.current_frame_idx = 0
+
+            # 加载帧
+            self._load_frames()
+
+            # 恢复位置
+            try:
+                px, py = get_pet_position()
+                self._pet_pos = (float(px), float(py))
+            except Exception:
+                self._pet_pos = (0.8, 0.15)
+
+            # 创建宠物图像
+            self._create_pet_widget()
+
+            # 启动动画（多帧时）
+            if self.pet_image and self.pet_def.get("frame_count", 1) > 1 and len(self.frames) > 1:
+                fps = self.pet_def.get("fps", 6)
+                self.anim_clock = Clock.schedule_interval(self._next_frame, 1.0 / fps)
+
+            return True
+        except Exception as e:
+            print(f"[PetOverlay] _init_pet failed: {e}")
             return False
-
-        self.pet_id = pet_id
-        self.pet_def = get_pet(pet_id)
-        if not self.pet_def:
-            return False
-
-        if not get_pet_visible():
-            return False
-
-        # 清理旧帧数据，避免残留
-        self.frames = []
-        self.current_frame_idx = 0
-
-        # 加载帧
-        self._load_frames()
-
-        # 恢复位置
-        px, py = get_pet_position()
-        self._pet_pos = (px, py)
-
-        # 创建宠物图像
-        self._create_pet_widget()
-
-        # 启动动画（多帧时）
-        if self.pet_def.get("frame_count", 1) > 1 and len(self.frames) > 1:
-            fps = self.pet_def.get("fps", 6)
-            self.anim_clock = Clock.schedule_interval(self._next_frame, 1.0 / fps)
-
-        return True
 
     def _load_frames(self):
         """加载宠物帧图像到内存"""
@@ -122,64 +120,83 @@ class PetOverlay(FloatLayout):
         if not pet_def:
             return
 
-        if pet_def.get("emoji"):
-            # Emoji 宠物——用文字替代
-            self.frames = [pet_def["emoji_char"]]
-            return
+        try:
+            if pet_def.get("emoji"):
+                # Emoji 宠物——用文字替代
+                emoji_char = pet_def.get("emoji_char", pet_def.get("emoji", "🐱"))
+                self.frames = [emoji_char]
+                return
 
-        frame_count = pet_def.get("frame_count", 1)
-        pattern = pet_def.get("frame_pattern", "ye_{i:02d}.png")
-        pet_dir = pet_def.get("dir", "")
+            frame_count = pet_def.get("frame_count", 1)
+            pattern = pet_def.get("frame_pattern", "ye_{i:02d}.png")
+            pet_dir = pet_def.get("dir", "")
 
-        for i in range(frame_count):
-            fname = pattern.replace("{i:02d}", f"{i:02d}")
-            fpath = self._assets_path(pet_dir, fname)
-            if os.path.exists(fpath):
-                self.frames.append(fpath)
-            else:
-                # 尝试静态图
-                static_path = self._assets_path(pet_dir, "static.png")
-                if os.path.exists(static_path):
-                    self.frames.append(static_path)
-                    break
+            for i in range(frame_count):
+                fname = pattern.replace("{i:02d}", f"{i:02d}")
+                fpath = self._assets_path(pet_dir, fname)
+                if os.path.exists(fpath):
+                    self.frames.append(fpath)
+                else:
+                    # 尝试静态图
+                    static_path = self._assets_path(pet_dir, "static.png")
+                    if os.path.exists(static_path):
+                        self.frames.append(static_path)
+                        break
 
-        if not self.frames:
-            self.frames = ["🐾"]  # 终极备用
+            if not self.frames:
+                self.frames = ["🐾"]  # 终极备用
+        except Exception as e:
+            print(f"[PetOverlay] _load_frames failed: {e}")
+            self.frames = ["🐾"]
 
     def _create_pet_widget(self):
         """创建可显示的宠物 Widget"""
         self._remove_pet_widget()
 
-        if self.pet_def.get("emoji"):
-            # Emoji 模式
-            self.pet_image = Label(
-                text=self.frames[0] if self.frames else "🐱",
-                font_size=dp(40),
-                size_hint=(None, None),
-                size=(dp(50), dp(50)),
-            )
-        else:
-            # 图片模式
-            tex_path = self.frames[0] if self.frames else ""
-            if not tex_path or not os.path.exists(str(tex_path)):
-                tex_path = self._assets_path("ye_jiaxing", "static.png")
-            self.pet_image = Image(
-                source=str(tex_path),
-                size_hint=(None, None),
-                allow_stretch=True,
-                keep_ratio=True,
-            )
-            # 根据窗口比例确定大小
-            w_ratio, h_ratio = self.pet_def.get("size", (0.12, 0.16))
-            self.pet_image.size = (Window.width * w_ratio, Window.height * h_ratio)
+        try:
+            if self.pet_def.get("emoji"):
+                # Emoji 模式
+                emoji_char = self.frames[0] if self.frames else "🐱"
+                self.pet_image = Label(
+                    text=str(emoji_char),
+                    font_size=dp(40),
+                    size_hint=(None, None),
+                    size=(dp(50), dp(50)),
+                )
+            else:
+                # 图片模式
+                tex_path = self.frames[0] if self.frames else ""
+                if not tex_path or not os.path.exists(str(tex_path)):
+                    tex_path = self._assets_path("蟑克", "static.png")
+                if not tex_path or not os.path.exists(str(tex_path)):
+                    # 最终备用：使用 emoji
+                    self.pet_image = Label(
+                        text="🐾",
+                        font_size=dp(40),
+                        size_hint=(None, None),
+                        size=(dp(50), dp(50)),
+                    )
+                else:
+                    self.pet_image = Image(
+                        source=str(tex_path),
+                        size_hint=(None, None),
+                        allow_stretch=True,
+                        keep_ratio=True,
+                    )
+                    # 根据窗口比例确定大小
+                    w_ratio, h_ratio = self.pet_def.get("size", (0.12, 0.16))
+                    self.pet_image.size = (Window.width * w_ratio, Window.height * h_ratio)
 
-        # 初始位置
-        self.pet_image.pos = (
-            (Window.width - self.pet_image.width) * self._pet_pos[0],
-            (Window.height - self.pet_image.height) * self._pet_pos[1],
-        )
+            # 初始位置
+            self.pet_image.pos = (
+                (Window.width - self.pet_image.width) * self._pet_pos[0],
+                (Window.height - self.pet_image.height) * self._pet_pos[1],
+            )
 
-        self.add_widget(self.pet_image)
+            self.add_widget(self.pet_image)
+        except Exception as e:
+            print(f"[PetOverlay] _create_pet_widget failed: {e}")
+            self.pet_image = None
 
     def _remove_pet_widget(self):
         """移除宠物 Widget"""
@@ -189,7 +206,7 @@ class PetOverlay(FloatLayout):
 
     def _next_frame(self, dt):
         """动画下一帧"""
-        if not self.pet_image or not self.frames or self.pet_def.get("emoji"):
+        if not self.pet_image or not self.frames or not self.pet_def or self.pet_def.get("emoji"):
             return
         self.current_frame_idx = (self.current_frame_idx + 1) % len(self.frames)
         tex_path = self.frames[self.current_frame_idx]
@@ -368,11 +385,7 @@ class PetOverlay(FloatLayout):
 
         # 全屏古神动画覆盖层（手动帧轮播，避免Kivy GIF加载bug）
         self.gushen_frames = []
-        if platform == "android":
-            gushen_base = os.environ.get("ANDROID_PRIVATE", ".")
-        else:
-            gushen_base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        gushen_dir = os.path.join(gushen_base, "assets", "gushen_frames")
+        gushen_dir = "assets/pets/古神"
         if os.path.exists(gushen_dir):
             for fpath in sorted(glob.glob(os.path.join(gushen_dir, "frame_*.png"))):
                 self.gushen_frames.append(fpath)
@@ -462,11 +475,11 @@ class PetOverlay(FloatLayout):
             if self.anim_clock:
                 self.anim_clock.cancel()
                 self.anim_clock = None
-            if self.pet_def.get("frame_count", 1) > 1 and len(self.frames) > 1:
+            if self.pet_def and self.pet_def.get("frame_count", 1) > 1 and len(self.frames) > 1:
                 fps = self.pet_def.get("fps", 6)
                 self.anim_clock = Clock.schedule_interval(self._next_frame, 1.0 / fps)
         elif not self.pet_image:
-            # _init_pet 返回 True 表示成功创建了宠物
+            # _init_pet 内部已创建 widget 并启动动画
             if not self._init_pet():
                 return
         set_pet_visible(True)
@@ -491,17 +504,20 @@ class PetOverlay(FloatLayout):
 
     def reload_pet(self):
         """重新加载宠物（更换宠物后调用）"""
-        # 清理旧的宠物 widget，但不改变 visible 状态
-        if self.pet_image and self.pet_image in self.children:
-            self.remove_widget(self.pet_image)
-        if self.anim_clock:
-            self.anim_clock.cancel()
-        self._dismiss_action_menu()
-        self._dismiss_speech_bubble()
-        self.pet_image = None
-        self.anim_clock = None
-        self.pet_id = None
-        self.pet_def = None
-        self.frames = []
-        self.current_frame_idx = 0
-        self._init_pet()
+        try:
+            # 清理旧的宠物 widget，但不改变 visible 状态
+            if self.pet_image and self.pet_image in self.children:
+                self.remove_widget(self.pet_image)
+            if self.anim_clock:
+                self.anim_clock.cancel()
+            self._dismiss_action_menu()
+            self._dismiss_speech_bubble()
+            self.pet_image = None
+            self.anim_clock = None
+            self.pet_id = None
+            self.pet_def = None
+            self.frames = []
+            self.current_frame_idx = 0
+            self._init_pet()
+        except Exception as e:
+            print(f"[PetOverlay] reload_pet failed: {e}")

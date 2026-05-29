@@ -7,7 +7,6 @@ from kivy.metrics import dp
 from kivy.uix.screenmanager import Screen
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.image import Image as KivyImage
-from kivy.utils import platform
 import os
 from kivymd.app import MDApp
 from kivymd.uix.card import MDCard
@@ -185,13 +184,7 @@ class PetMenuScreen(Screen):
 
         # 宠物形象（static.png）
         pet_dir = pdef.get("dir", pid)
-        if platform == "android":
-            base = os.environ.get("ANDROID_PRIVATE", ".")
-        else:
-            base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        static_path = os.path.join(
-            base, "assets", "pets", pet_dir, "static.png"
-        )
+        static_path = os.path.join("assets", "pets", pet_dir, "static.png")
         icon = KivyImage(
             source=static_path if os.path.exists(static_path) else "",
             size_hint=(None, None),

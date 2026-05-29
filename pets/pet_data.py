@@ -7,22 +7,6 @@ import json
 
 # ── 宠物定义 ──
 PETS = {
-    "蟑克": {
-        "id": "蟑克",
-        "name": "蟑克",
-        "dir": "蟑克",
-        "frame_count": 30,
-        "frame_pattern": "frame_{i:02d}.png",
-        "static": "static.png",
-        "fps": 10,
-        "size": (0.14, 0.18),
-        "no_api_phrases": [
-            "吴尧你******（古神低语）",
-            "阿米诺斯****（古神低语）",
-        ],
-        "description": "克苏鲁の蟑螂怪谈",
-        "color": (0.18, 0.05, 0.22, 1),  # 暗紫色
-    },
     "菠又亮": {
         "id": "菠又亮",
         "name": "菠又亮",
@@ -102,39 +86,6 @@ PETS = {
         ],
         "description": "相扑地狱の悪魔",
         "color": (0.45, 0.0, 0.45, 1),  # 深紫
-    },
-    "叶家兴": {
-        "id": "叶家兴",
-        "name": "叶家兴",
-        "dir": "叶家兴",
-        "frame_count": 30,
-        "frame_pattern": "frame_{i:02d}.png",
-        "static": "static.png",
-        "fps": 10,
-        "size": (0.16, 0.18),
-        "no_api_phrases": [
-            "叶家兴旺，家猩有责",
-            "嘉禾万事兴",
-            "家兴，则国兴；国兴，则天下兴；天下兴，则叶家兴。",
-        ],
-        "description": "健身猩猩の传说",
-        "color": (0.65, 0.35, 0.05, 1),  # 棕橙
-    },
-    "叶猿蕉": {
-        "id": "叶猿蕉",
-        "name": "叶猿蕉",
-        "dir": "叶猿蕉",
-        "frame_count": 30,
-        "frame_pattern": "frame_{i:02d}.png",
-        "static": "static.png",
-        "fps": 10,
-        "size": (0.16, 0.18),
-        "no_api_phrases": [
-            "，，，，，，，，",
-            "。。。。。。。。。",
-        ],
-        "description": "猿力蕉量の化身",
-        "color": (0.85, 0.65, 0.0, 1),  # 蕉黄
     },
     "鹏·鹿丸": {
         "id": "鹏·鹿丸",
