@@ -18,6 +18,9 @@ source.dir = .
 # (list) Source file extensions to include
 source.include_exts = py,png,jpg,jpeg,gif,wav,ttf,ico,txt
 
+# (list) Source include patterns to include (directories with assets)
+source.include_patterns = assets/*
+
 # (list) Requirements (Python packages for Android)
 requirements = python3,kivy==2.3.1,kivymd==1.2.0,requests,Pillow
 

@@ -6,6 +6,7 @@ import os
 import random
 import glob
 from kivy.clock import Clock
+from kivy.utils import platform
 from kivy.metrics import dp
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.image import Image
@@ -25,10 +26,11 @@ from pets.pet_chat import SpeechBubble, ChatDialog
 
 
 def _assets(*parts):
-    return os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        "assets", "pets", *parts
-    )
+    if platform == "android":
+        base = os.environ.get("ANDROID_PRIVATE", ".")
+    else:
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base, "assets", "pets", *parts)
 
 
 class PetOverlay(FloatLayout):
@@ -71,10 +73,11 @@ class PetOverlay(FloatLayout):
 
     def _load_horror_sound(self):
         """加载恐怖音效"""
-        path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            "assets", "horror.wav"
-        )
+        if platform == "android":
+            base = os.environ.get("ANDROID_PRIVATE", ".")
+        else:
+            base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        path = os.path.join(base, "assets", "horror.wav")
         if os.path.exists(path):
             self.horror_sound = SoundLoader.load(path)
 
@@ -82,15 +85,19 @@ class PetOverlay(FloatLayout):
         """从配置加载宠物"""
         pet_id = get_selected_pet()
         if not pet_id:
-            return
+            return False
 
         self.pet_id = pet_id
         self.pet_def = get_pet(pet_id)
         if not self.pet_def:
-            return
+            return False
 
         if not get_pet_visible():
-            return
+            return False
+
+        # 清理旧帧数据，避免残留
+        self.frames = []
+        self.current_frame_idx = 0
 
         # 加载帧
         self._load_frames()
@@ -106,6 +113,8 @@ class PetOverlay(FloatLayout):
         if self.pet_def.get("frame_count", 1) > 1 and len(self.frames) > 1:
             fps = self.pet_def.get("fps", 6)
             self.anim_clock = Clock.schedule_interval(self._next_frame, 1.0 / fps)
+
+        return True
 
     def _load_frames(self):
         """加载宠物帧图像到内存"""
@@ -359,10 +368,11 @@ class PetOverlay(FloatLayout):
 
         # 全屏古神动画覆盖层（手动帧轮播，避免Kivy GIF加载bug）
         self.gushen_frames = []
-        gushen_dir = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            "assets", "gushen_frames"
-        )
+        if platform == "android":
+            gushen_base = os.environ.get("ANDROID_PRIVATE", ".")
+        else:
+            gushen_base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        gushen_dir = os.path.join(gushen_base, "assets", "gushen_frames")
         if os.path.exists(gushen_dir):
             for fpath in sorted(glob.glob(os.path.join(gushen_dir, "frame_*.png"))):
                 self.gushen_frames.append(fpath)
@@ -448,11 +458,17 @@ class PetOverlay(FloatLayout):
         """显示宠物"""
         if self.pet_image and self.pet_image not in self.children:
             self.add_widget(self.pet_image)
+            # 先取消旧动画，避免重复调度
+            if self.anim_clock:
+                self.anim_clock.cancel()
+                self.anim_clock = None
             if self.pet_def.get("frame_count", 1) > 1 and len(self.frames) > 1:
                 fps = self.pet_def.get("fps", 6)
                 self.anim_clock = Clock.schedule_interval(self._next_frame, 1.0 / fps)
         elif not self.pet_image:
-            self._init_pet()
+            # _init_pet 返回 True 表示成功创建了宠物
+            if not self._init_pet():
+                return
         set_pet_visible(True)
 
     def hide(self):
