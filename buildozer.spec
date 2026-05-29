@@ -48,6 +48,9 @@ android.ndk = 27c
 # (bool) Enable AndroidX
 android.enable_androidx = True
 
+# (bool) Accept SDK license
+android.accept_sdk_license = True
+
 # (str) Target architecture
 android.archs = arm64-v8a
 
