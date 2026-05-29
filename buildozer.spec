@@ -6,6 +6,9 @@ title = LWUP
 # (str) Package name
 package.name = lwup
 
+# (str) Application version
+version = 1.0.0
+
 # (str) Package domain (unique identifier)
 package.domain = org.zsy
 
